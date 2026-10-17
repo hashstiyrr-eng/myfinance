@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyFinance</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101827;color:#fff;font-family:Arial,sans-serif;padding:20px}
+header{padding:12px 0}
+h1{color:#5ee6a8;margin-bottom:5px}
+.subtitle{color:#aab5c5}
+.card{background:#1d293b;border-radius:16px;padding:20px;margin:16px 0}
+.balance{font-size:32px;font-weight:bold;color:#5ee6a8;margin:12px 0}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.label{color:#aab5c5;font-size:13px}
+.amount{font-size:20px;font-weight:bold;margin-top:8px}
+input,select,button{width:100%;padding:13px;border-radius:10px;border:1px solid #39465b;margin-top:10px;font-size:15px}
+input,select{background:#101827;color:white}
+button{background:#5ee6a8;color:#102018;font-weight:bold;border:none}
+button:active{opacity:.8}
+.expense{color:#ff7b86}
+.income{color:#5ee6a8}
+.transaction{display:flex;justify-content:space-between;gap:8px;padding:12px 0;border-bottom:1px solid #39465b}
+.transaction small{display:block;color:#aab5c5;margin-top:5px}
+.delete{width:auto;margin:0;padding:5px 10px;background:#ff7b86}
+footer{text-align:center;color:#8793a7;font-size:12px;padding:20px}
+</style>
+</head>
+<body>
+<header>
+<h1>MyFinance 💰</h1>
+<div class="subtitle">Ton argent, mieux organisé.</div>
+</header>
+
+<section class="card">
+<div class="label">SOLDE DISPONIBLE</div>
+<div class="balance" id="balance">0 Ar</div>
+<div class="stats">
+<div><div class="label">Revenus</div><div class="amount income" id="income">0 Ar</div></div>
+<div><div class="label">Dépenses</div><div class="amount expense" id="expenses">0 Ar</div></div>
+</div>
+</section>
+
+<section class="card">
+<h3>➕ Nouvelle opération</h3>
+<form id="form">
+<select id="type">
+<option value="income">Revenu</option>
+<option value="expense">Dépense</option>
+</select>
+<input id="description" placeholder="Description (ex. salaire)" required>
+<input id="amount" type="number" min="1" step="1" placeholder="Montant en Ariary" required>
+<input id="date" type="date" required>
+<button type="submit">Enregistrer l'opération</button>
+</form>
+</section>
+
+<section class="card">
+<h3>📋 Historique</h3>
+<div id="history">Aucune opération pour le moment.</div>
+<button id="export">Exporter mes données (JSON)</button>
+</section>
+
+<footer>MyFinance · Gestion financière personnelle</footer>
+
+<script>
+const $=id=>document.getElementById(id);
+const format=n=>new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0}).format(n)+' Ar';
+let transactions=[];
+try{transactions=JSON.parse(localStorage.getItem('myfinance_transactions')||'[]');if(!Array.isArray(transactions))transactions=[]}catch(e){transactions=[]}
+$('date').value=new Date().toISOString().slice(0,10);
+
+function save(){
+localStorage.setItem('myfinance_transactions',JSON.stringify(transactions));
+render();
+}
+function render(){
+const income=transactions.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+const expenses=transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+$('balance').textContent=format(income-expenses);
+$('income').textContent=format(income);
+$('expenses').textContent=format(expenses);
+const history=$('history');
+history.replaceChildren();
+if(!transactions.length){history.textContent='Aucune opération pour le moment.';return}
+[...transactions].reverse().forEach(t=>{
+const row=document.createElement('div');row.className='transaction';
+const info=document.createElement('div');
+const title=document.createElement('strong');title.textContent=t.description;
+const date=document.createElement('small');date.textContent=t.date;
+info.append(title,date);
+const right=document.createElement('div');
+const amount=document.createElement('span');
+amount.className=t.type==='income'?'income':'expense';
+amount.textContent=(t.type==='income'?'+':'−')+format(t.amount);
+const del=document.createElement('button');del.className='delete';del.textContent='Supprimer';
+del.onclick=()=>{if(confirm('Supprimer cette opération ?')){transactions=transactions.filter(x=>x.id!==t.id);save()}};
+right.append(amount,del);row.append(info,right);history.append(row);
+});
+}
+$('form').addEventListener('submit',e=>{
+e.preventDefault();
+const description=$('description').value.trim();
+const amount=Number($('amount').value);
+const date=$('date').value;
+if(!description||!Number.isSafeInteger(amount)||amount<=0||!date){alert('Vérifie les informations saisies.');return}
+transactions.push({id:Date.now()+Math.random(),type:$('type').value,description,amount,date});
+save();$('form').reset();$('date').value=new Date().toISOString().slice(0,10);
+});
+$('export').onclick=()=>{
+const blob=new Blob([JSON.stringify(transactions,null,2)],{type:'application/json'});
+const url=URL.createObjectURL(blob);
+const a=document.createElement('a');a.href=url;a.download='myfinance-backup.json';a.click();
+URL.revokeObjectURL(url);
+};
+render();
+</script>
+</body>
+</html>
